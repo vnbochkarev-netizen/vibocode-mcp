@@ -1,0 +1,34 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.vnbochkarev-netizen/vibocode-mcp",
+  "description": "Two MCP tools instead of an API catalog: search finds endpoints, run executes model-written Python in a sandbox with memory and allowlisted HTTP.",
+  "version": "0.1.0",
+  "websiteUrl": "https://github.com/vnbochkarev-netizen/vibocode-mcp",
+  "repository": {
+    "url": "https://github.com/vnbochkarev-netizen/vibocode-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "vibocode-mcp",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "VIBOCODE_CATALOG",
+          "description": "Path to catalog.json describing the target service",
+          "isRequired": false
+        },
+        {
+          "name": "VIBO_MEM_FILE",
+          "description": "Path to the ViBo memory base (optional, enables persistent memory)",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}
