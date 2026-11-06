@@ -1,0 +1,44 @@
+{
+  "name": "vibocode-mcp",
+  "version": "0.1.0",
+  "description": "Two MCP tools instead of an API catalog: search finds endpoints, run executes model-written Python in a sandbox with memory and allowlisted HTTP. 219 tokens for the whole toolset.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "ai-agents",
+    "context-management",
+    "code-mode",
+    "tool-use",
+    "memory",
+    "sandbox"
+  ],
+  "license": "MIT",
+  "author": "ViBo <https://wwwvibo.com>",
+  "homepage": "https://github.com/vnbochkarev-netizen/vibocode-mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vnbochkarev-netizen/vibocode-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vnbochkarev-netizen/vibocode-mcp/issues"
+  },
+  "bin": {
+    "vibocode-mcp": "bin/vibocode-mcp.js"
+  },
+  "files": [
+    "bin/",
+    "vibocode/",
+    "catalog.json",
+    "skill/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ]
+}

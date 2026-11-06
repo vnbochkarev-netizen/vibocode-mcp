@@ -1,0 +1,31 @@
+{
+  "service": "klasskopilka",
+  "base_url": "http://127.0.0.1:4174",
+  "allow_domains": ["127.0.0.1"],
+  "actions": [
+    {"name": "health", "method": "GET", "path": "/api/health", "auth": false,
+     "desc": "Состояние сервиса: хранилище, каналы уведомлений, время сервера"},
+    {"name": "config", "method": "GET", "path": "/api/config", "auth": false,
+     "desc": "Публичная конфигурация: тарифы, ставки, лимиты"},
+    {"name": "classes_list", "method": "GET", "path": "/api/classes", "auth": true,
+     "desc": "Список классов пользователя с кодом класса"},
+    {"name": "class_balance", "method": "GET", "path": "/api/class-balance", "auth": true,
+     "desc": "Баланс копилки класса: собрано, потрачено, остаток"},
+    {"name": "class_data", "method": "GET", "path": "/api/class-data", "auth": true,
+     "desc": "Данные класса: участники, сборы, операции"},
+    {"name": "receipts", "method": "GET", "path": "/api/receipts", "auth": true,
+     "desc": "Чеки: список, статусы проверки ФНС"},
+    {"name": "payments_in", "method": "POST", "path": "/api/payments/in", "auth": true,
+     "desc": "Входящий платёж по коду класса"},
+    {"name": "commissions_variants", "method": "GET", "path": "/api/commissions/variants", "auth": true,
+     "desc": "Варианты тарифов и комиссий: СБП, доли агента"},
+    {"name": "votes", "method": "GET", "path": "/api/votes", "auth": true,
+     "desc": "Голосования класса: вопросы, результаты"},
+    {"name": "orders", "method": "GET", "path": "/api/orders", "auth": true,
+     "desc": "Заказы и траты класса"},
+    {"name": "audit", "method": "GET", "path": "/api/audit", "auth": true,
+     "desc": "Журнал действий: кто что менял и когда"},
+    {"name": "state", "method": "GET", "path": "/api/state", "auth": true,
+     "desc": "Полное состояние рабочей области для отладки"}
+  ]
+}
