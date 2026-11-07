@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Исполнитель кода модели. Запускается отдельным процессом с лимитами.
+"""Model code executor. Runs as a separate process with resource limits.
 
-На вход — JSON: {"code": "...", "cookie": null}
-На выход — JSON: {"ok": bool, "output": str, "error": str, "calls": [...]}
+Input  — JSON: {"code": "...", "cookie": null}
+Output — JSON: {"ok": bool, "output": str, "error": str, "calls": [...]}
 """
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def main() -> None:
         result["ok"] = True
     except Exception:
         tb = traceback.format_exc(limit=3)
-        result["error"] = tb.strip().splitlines()[-1] if tb.strip() else "ошибка"
+        result["error"] = tb.strip().splitlines()[-1] if tb.strip() else "error"
     text = out.getvalue()
     result["output"] = text[:MAX_OUTPUT]
     result["calls"] = mem.calls + api.calls

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Каталог действий: поиск нужных эндпоинтов вместо описания всех в контексте."""
+"""Action catalog: find the endpoints you need instead of describing all of them in context."""
 from __future__ import annotations
 
 import json
@@ -10,49 +10,26 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = Path(os.environ.get("VIBOCODE_CATALOG", _ROOT / "catalog.json"))
-
-# Намерение -> канонический английский глагол. Русский запрос должен находить
-# английский каталог: без этого поиск по каталогу Stripe/GitHub на русском даёт ноль.
-VERBS = {
-    "create": "POST", "add": "POST", "new": "POST", "make": "POST", "send": "POST", "post": "POST",
-    "get": "GET", "list": "GET", "show": "GET", "read": "GET", "fetch": "GET", "retrieve": "GET",
-    "update": "PATCH", "edit": "PATCH", "change": "PATCH", "modify": "PATCH", "set": "PATCH",
-    "delete": "DELETE", "remove": "DELETE", "cancel": "DELETE", "destroy": "DELETE",
-    "создать": "POST", "создай": "POST", "добавить": "POST", "добавь": "POST", "новый": "POST",
-    "отправить": "POST", "отправь": "POST", "выставить": "POST", "оформить": "POST",
-    "получить": "GET", "покажи": "GET", "показать": "GET", "список": "GET", "найти": "GET",
-    "найди": "GET", "прочитать": "GET", "читать": "GET", "сколько": "GET", "какой": "GET",
-    "изменить": "PATCH", "измени": "PATCH", "обновить": "PATCH", "обнови": "PATCH", "правка": "PATCH",
-    "удалить": "DELETE", "удали": "DELETE", "отменить": "DELETE", "отмени": "DELETE", "снять": "DELETE",
-}
-
-# Существительные: русский корень/слово -> английские основы, которые ищем в каталоге.
-NOUNS = {
-    "платёж": ["payment"], "платеж": ["payment"], "платежи": ["payment"], "оплата": ["payment", "charge"],
-    "возврат": ["refund"], "вернуть": ["refund"], "возвратить": ["refund"],
-    "клиент": ["customer"], "клиенты": ["customer"], "покупатель": ["customer", "buyer"],
-    "подписка": ["subscription"], "подписки": ["subscription"], "подписчик": ["subscriber"],
-    "счёт": ["invoice"], "счет": ["invoice"], "счёт-фактура": ["invoice"], "инвойс": ["invoice"],
-    "товар": ["product"], "товары": ["product"], "продукт": ["product"],
-    "заказ": ["order"], "заказы": ["order"], "корзина": ["cart"], "баланс": ["balance"],
-    "остаток": ["balance", "stock"], "склад": ["inventory", "stock"], "остатки": ["stock"],
-    "репозиторий": ["repo", "repository"], "репозитории": ["repo", "repository"],
-    "звёзды": ["star", "stargazer"], "звезды": ["star", "stargazer"], "звезда": ["star"],
-    "пользователь": ["user"], "пользователи": ["user"], "юзер": ["user"],
-    "файл": ["file"], "файлы": ["file"], "сообщение": ["message"], "сообщения": ["message"],
-    "чат": ["chat"], "канал": ["channel"], "письмо": ["email", "message"], "почта": ["email"],
-    "встреча": ["event"], "календарь": ["calendar"], "задача": ["task", "issue"],
-    "ошибка": ["error"], "логи": ["log"], "метрика": ["metric"], "цена": ["price"],
-    "скидка": ["coupon", "discount"], "купон": ["coupon"], "доставка": ["shipping"],
-    "адрес": ["address"], "отчёт": ["report"], "отчет": ["report"], "документ": ["document"],
-    "договор": ["contract"], "событие": ["event"], "запрос на слияние": ["pull"], "пул-реквест": ["pulls"],
-    "issue": ["issues"], "коммит": ["commit"], "коммиты": ["commit"], "ветка": ["branch"],
-    "тег": ["tag", "release"], "релиз": ["release"], "статус": ["status"], "номер": ["number"],
-}
+ALIASES_PATH = Path(os.environ.get("VIBOCODE_ALIASES", Path(__file__).resolve().parent / "aliases.json"))
 
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
-_WORD = re.compile(r"[^0-9a-zа-яё]+")
+_WORD = re.compile("[^0-9a-z\u0430-\u044f\u0451]+")
 _PARAM = re.compile(r"\{[^}]*\}")
+
+
+def _load_aliases() -> tuple[dict, dict]:
+    """Alias tables: intent word -> HTTP method, and noun -> catalog terms.
+
+    Kept in aliases.json so the code stays language-agnostic: a new language is data only.
+    """
+    try:
+        data = json.loads(ALIASES_PATH.read_text(encoding="utf-8"))
+        return data.get("verbs", {}), data.get("nouns", {})
+    except Exception:
+        return {}, {}
+
+
+VERBS, NOUNS = _load_aliases()
 
 
 def load() -> dict:
@@ -60,7 +37,8 @@ def load() -> dict:
 
 
 def _norm(w: str) -> str:
-    return w.replace("ё", "е").lower()
+    """Lowercase, folding one Cyrillic spelling variant so both forms match."""
+    return w.replace("\u0451", "\u0435").lower()
 
 
 def _tokens(text: str) -> list[str]:
@@ -69,7 +47,7 @@ def _tokens(text: str) -> list[str]:
 
 
 def _same(a: str, b: str) -> bool:
-    """Равенство с учётом английского множественного числа: subscription == subscriptions."""
+    """Equality tolerant to English plurals: subscription == subscriptions."""
     if a == b:
         return True
     sa, sb = (a[:-1] if a.endswith("s") else a), (b[:-1] if b.endswith("s") else b)
@@ -83,10 +61,10 @@ def _query_terms(query: str) -> tuple[list[str], set[str]]:
     terms: list[str] = []
     methods: set[str] = set()
 
-    for ru, en in sorted(NOUNS.items(), key=lambda kv: -len(kv[0])):  # многословные первыми
-        if " " in ru and ru in q:
+    for word, en in sorted(NOUNS.items(), key=lambda kv: -len(kv[0])):  # multi-word first
+        if " " in word and word in q:
             terms.extend(en)
-            q = q.replace(ru, " ")
+            q = q.replace(word, " ")
 
     for raw in _WORD.split(q):
         if len(raw) < 2:
@@ -98,7 +76,7 @@ def _query_terms(query: str) -> tuple[list[str], set[str]]:
             terms.extend(NOUNS[raw])
             continue
         stem = raw[:5]
-        hit = [en for ru, en in NOUNS.items() if " " not in ru and ru.startswith(stem)]
+        hit = [en for word, en in NOUNS.items() if " " not in word and word.startswith(stem)]
         if hit:
             for en in hit:
                 terms.extend(en)
@@ -114,7 +92,7 @@ def _score(query: str, action: dict) -> int:
 
     name_toks = _tokens(action.get("name", ""))
     path = action.get("path", "")
-    # ресурсные сегменты пути без версии и без параметров: /v1/charges/{charge}/refund -> charges/refund
+    # resource segments only: no version, no parameters. /v1/charges/{charge}/refund -> charges/refund
     res_toks = [t for t in _tokens(_PARAM.sub(" ", path)) if not re.fullmatch(r"v\d+|\d+", t)]
     resource = "/".join(res_toks)
     first, last = (res_toks[0] if res_toks else ""), (res_toks[-1] if res_toks else "")
@@ -136,7 +114,7 @@ def _score(query: str, action: dict) -> int:
     if methods:
         score += 6 if action.get("method") in methods else -3
 
-    # попадание в сам ресурс: точное важнее префикса, префикс важнее «где-то внутри пути»
+    # hitting the resource itself beats hitting it somewhere deep in the path
     for t in terms:
         if _same(first, t) or _same(last, t):
             score += 10
@@ -144,7 +122,7 @@ def _score(query: str, action: dict) -> int:
             score += 6
         elif t[:4] in resource:
             score += 2
-    # глубокий путь — обычно подресурс, а не то, что просили
+    # a deep path is usually a sub-resource, not what was asked for
     score -= 2 * max(0, len(res_toks) - 1)
     return score
 
@@ -157,13 +135,13 @@ def search(query: str, limit: int = 4) -> list[dict]:
 
 
 def signature(action: dict) -> str:
-    """Компактная сигнатура для модели: без описаний, только то, что нужно для вызова."""
-    auth = "" if action.get("auth") is False else " (нужна сессия)"
+    """Compact signature for the model: no descriptions, only what a call needs."""
+    auth = "" if action.get("auth") is False else " (auth required)"
     return f'{action["name"]}: {action["method"]} {action["path"]}{auth}'
 
 
 if __name__ == "__main__":
     import sys
-    q = " ".join(sys.argv[1:]) or "баланс"
+    q = " ".join(sys.argv[1:]) or "balance"
     for a in search(q):
         print(signature(a), "—", a["desc"])

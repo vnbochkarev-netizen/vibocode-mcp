@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""ViBo Code — MCP-сервер с двумя инструментами: search и run.
+"""ViBo Code — an MCP server with two tools: search and run.
 
-Протокол: JSON-RPC 2.0, по одному объекту на строку (stdio).
-Инструменты:
-  search — ищет действия каталога и факты памяти, возвращает компактные сигнатуры
-  run    — исполняет код модели в песочнице с доступом к vi.* (память) и api.* (allowlist)
+Transport: JSON-RPC 2.0, one object per line over stdio.
+Tools:
+  search — finds catalog actions and memory facts, returns compact signatures
+  run    — executes model-written code in a sandbox with vi.* (memory) and api.* (allowlist)
 """
 from __future__ import annotations
 
@@ -18,20 +18,20 @@ from vibocode import catalog, sandbox  # noqa: E402
 from vibocode.bridge import Memory  # noqa: E402
 
 PROTOCOL = "2025-06-18"
-SERVER_INFO = {"name": "vibocode", "version": "0.1.0-poc"}
+SERVER_INFO = {"name": "vibocode", "version": "0.1.1"}
 
 TOOLS = [
     {
         "name": "search",
         "description": (
-            "Найти доступные действия сервиса и связанные факты памяти. "
-            "Возвращает только компактные сигнатуры (name: METHOD /path), а не полный каталог. "
-            "Вызывай перед run, чтобы узнать точный путь эндпоинта."
+            "Find available service actions and related memory facts. "
+            "Returns compact signatures (name: METHOD /path), never the full catalog. "
+            "Call it before run to get the exact endpoint path."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Что нужно сделать, словами"},
+                "query": {"type": "string", "description": "What you want to do, in words"},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 10, "default": 4},
             },
             "required": ["query"],
@@ -40,14 +40,14 @@ TOOLS = [
     {
         "name": "run",
         "description": (
-            "Выполнить Python-код в песочнице. Доступны: vi.find(query), vi.add(label, content), "
-            "vi.stats(), api.get(path), json. Один запуск — сколько угодно вызовов внутри. "
-            "Разрешённые импорты: json, math, re, datetime, statistics, itertools."
+            "Execute Python code in a sandbox. Available: vi.find(query), vi.add(label, content), "
+            "vi.stats(), api.get(path), json. One run may contain any number of calls. "
+            "Allowed imports: json, math, re, datetime, statistics, itertools."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "code": {"type": "string", "description": "Код Python, который надо выполнить"},
+                "code": {"type": "string", "description": "Python code to execute"},
             },
             "required": ["code"],
         },
@@ -62,10 +62,10 @@ def call_tool(name: str, args: dict) -> dict:
         actions = catalog.search(query, limit=limit)
         mem = Memory()
         facts = mem.find(query, limit=3) if len(query) > 2 else []
-        lines = ["Действия сервиса:"]
-        lines += [f"  {catalog.signature(a)} — {a['desc']}" for a in actions] or ["  ничего не найдено"]
-        lines.append("Память:")
-        lines += [f"  • {f['label']}: {f['text']}" for f in facts] or ["  пусто"]
+        lines = ["Service actions:"]
+        lines += [f"  {catalog.signature(a)} — {a['desc']}" for a in actions] or ["  nothing found"]
+        lines.append("Memory:")
+        lines += [f"  • {f['label']}: {f['text']}" for f in facts] or ["  empty"]
         text = "\n".join(lines)
         return {"content": [{"type": "text", "text": text}],
                 "structuredContent": {"actions": actions, "memories": facts}}
@@ -78,7 +78,7 @@ def call_tool(name: str, args: dict) -> dict:
                 "structuredContent": result,
                 "isError": not result.get("ok", False)}
 
-    raise ValueError(f"неизвестный инструмент: {name}")
+    raise ValueError(f"unknown tool: {name}")
 
 
 def handle(msg: dict) -> dict | None:
@@ -101,7 +101,7 @@ def handle(msg: dict) -> dict | None:
             return {"jsonrpc": "2.0", "id": mid, "result": out}
         except Exception as e:
             return {"jsonrpc": "2.0", "id": mid,
-                    "result": {"content": [{"type": "text", "text": f"ошибка: {e}"}],
+                    "result": {"content": [{"type": "text", "text": f"error: {e}"}],
                                "structuredContent": {"ok": False, "error": str(e), "calls": []},
                                "isError": True}}
     if method == "ping":
@@ -109,7 +109,7 @@ def handle(msg: dict) -> dict | None:
     if mid is None:
         return None
     return {"jsonrpc": "2.0", "id": mid,
-            "error": {"code": -32601, "message": f"метод не поддерживается: {method}"}}
+            "error": {"code": -32601, "message": f"method not supported: {method}"}}
 
 
 def main() -> None:

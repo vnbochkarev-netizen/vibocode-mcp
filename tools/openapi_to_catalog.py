@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""OpenAPI → catalog.json для ViBo Code.
+"""OpenAPI -> catalog.json for ViBo Code.
 
-Использование:
+Usage:
     python3 openapi_to_catalog.py openapi.json -o catalog.json \
         --base-url https://api.example.com --allow api.example.com \
         --service example --max 200
 
-Почему это важно: ручной каталог живёт, пока эндпоинтов 12. На 200 они пишутся
-скриптом, иначе продукт не масштабируется.
+Why it matters: a hand-written catalog survives while there are a dozen endpoints.
+At two hundred they are generated, otherwise the product does not scale.
 """
 from __future__ import annotations
 
@@ -48,15 +48,14 @@ def convert(spec: dict, limit: int) -> list[dict]:
             name = op.get("operationId") or re.sub(r"[^a-z0-9]+", "_", f"{method}_{path}".lower()).strip("_")
             params = list(path_params) + list(op.get("parameters") or [])
             has_body = bool(op.get("requestBody"))
-            described = short(op.get("description") or op.get("summary") or "")
-            desc = described
+            desc = short(op.get("description") or op.get("summary") or "")
             if params or has_body:
                 parts = []
                 if params:
-                    parts.append("параметры: " + ", ".join(
+                    parts.append("params: " + ", ".join(
                         p.get("name", "") for p in params if isinstance(p, dict)))
                 if has_body:
-                    parts.append("тело запроса")
+                    parts.append("request body")
                 desc = (desc + " · " if desc else "") + "; ".join(parts)
             actions.append({
                 "name": name,
@@ -71,11 +70,11 @@ def convert(spec: dict, limit: int) -> list[dict]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Собрать catalog.json из OpenAPI")
+    ap = argparse.ArgumentParser(description="Build catalog.json from an OpenAPI spec")
     ap.add_argument("spec")
     ap.add_argument("-o", "--out", default="catalog.json")
     ap.add_argument("--base-url", default="")
-    ap.add_argument("--allow", default="", help="домены через запятую")
+    ap.add_argument("--allow", default="", help="comma-separated domains")
     ap.add_argument("--service", default="service")
     ap.add_argument("--max", type=int, default=200)
     args = ap.parse_args()
@@ -88,7 +87,7 @@ def main() -> int:
 
     out = {"service": args.service, "base_url": base, "allow_domains": allow, "actions": actions}
     Path(args.out).write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"готово: {args.out} — {len(actions)} действий, домены {allow}")
+    print(f"done: {args.out} — {len(actions)} actions, domains {allow}")
     return 0
 
 

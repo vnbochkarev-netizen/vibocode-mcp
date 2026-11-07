@@ -1,70 +1,71 @@
 ---
 name: vibocode
-description: "Use when an agent needs many API actions without flooding context: search finds the right endpoints, run executes model-written Python in a sandbox with memory (ViBo) and allowlisted HTTP in one call."
-version: 0.1.0
+description: "Use when an agent needs many API actions without flooding context: search finds the right endpoints, run executes model-written Python in a sandbox with memory and allowlisted HTTP in one call."
+version: 0.1.1
 tools: [python]
-license: Proprietary — https://wwwvibo.com
+license: MIT
 ---
 
-# ViBo Code — два инструмента вместо каталога API
+# ViBo Code — two tools instead of an API catalog
 
-Проблема: API из десятков эндпоинтов, описанный по инструменту на каждый, съедает контекст
-агента (2 500 методов Cloudflare — 1,17 млн токенов). Решение: два инструмента.
+The problem: an API with dozens of endpoints, described as one tool per endpoint, eats the
+agent's context (Cloudflare's 2,500 methods would be 1.17M tokens). The solution: two tools.
 
-1. `search` — по запросу находит подходящие эндпоинты и факты памяти, отдаёт компактные
-   сигнатуры (`class_balance: GET /api/class-balance`) вместо полных описаний.
-2. `run` — исполняет Python-код модели в песочнице: `api.get(path)` только по allowlist,
-   `vi.add/find/stats` для памяти ViBo. Один вызов закрывает цепочку «нашёл → вызвал → запомнил».
+1. `search` — finds matching endpoints and memory facts for a query, returns compact
+   signatures (`group_balance: GET /api/group-balance`) instead of full descriptions.
+2. `run` — executes model-written Python in a sandbox: `api.get(path)` only through the
+   allowlist, `vi.add/find/stats` for memory. One call closes the loop
+   "found -> called -> remembered".
 
-## Когда применять
+## When to use
 
-- у сервиса десятки и сотни действий, а агент ходит в 3–4;
-- нужен один вызов на цепочку запросов вместо десяти раундов;
-- результат вызова надо сразу записать в память, чтобы следующая сессия не выясняла заново.
+- the service has dozens or hundreds of actions while the agent uses three or four;
+- a chain of requests should take one call instead of ten round trips;
+- the result must be written to memory so the next session does not rediscover it.
 
-## Установка
+## Install
 
 ```bash
-# каталог действий сервиса
-vi /opt/vibocode/catalog.json     # base_url, allow_domains, actions[]
+# the service action catalog
+vi <package-root>/catalog.json     # base_url, allow_domains, actions[]
 
-# запуск MCP-сервера (stdio, JSON-RPC построчно)
-python3 /opt/vibocode/vibocode/server.py
+# start the MCP server (stdio, line-delimited JSON-RPC)
+python3 <package-root>/vibocode/server.py
 
-# тесты PoC: 19 проверок, включая блокировки песочницы
-python3 /opt/vibocode/tests/test_mcp.py
+# PoC tests: 19 checks including sandbox blocks
+python3 <package-root>/tests/test_mcp.py
 ```
 
-## Использование из CLI
+## CLI usage
 
 ```bash
-# что умеет сервис по этому запросу
-python3 skill/scripts/vibocode.py search "баланс копилки класса"
+# what the service can do for this query
+python3 skill/scripts/vibocode.py search "group balance"
 
-# выполнить код в песочнице
+# run code in the sandbox
 python3 skill/scripts/vibocode.py run 'h = api.get("/api/health"); print(h["status"])'
 ```
 
-## Безопасность
+## Security
 
-- импорты: только `json, math, re, datetime, statistics, itertools`;
-- запрещены `open, eval, exec, compile, __import__, getattr, setattr`, служебные атрибуты,
-  `global/nonlocal`, бесконечные циклы;
-- сеть: только `api.get(path)` и только домены из `allow_domains`;
-- лимиты: 40 с на запуск, 1,5 ГБ памяти, 20 с CPU, вывод до 4 000 символов;
-- повторная запись того же факта в память пропускается (защита от дублей).
+- imports: only `json, math, re, datetime, statistics, itertools`;
+- forbidden: `open, eval, exec, compile, __import__, getattr, setattr`, dunder attributes,
+  `global/nonlocal`, infinite loops;
+- network: only `api.get(path)`, only domains from `allow_domains`;
+- limits: 40 s per run, 1.5 GB memory, 20 s CPU, output capped at 4,000 characters;
+- writing the same fact twice is skipped (duplicate protection).
 
-## Ограничения
+## Limitations
 
-- песочница уровня Python (AST + rlimits + отдельный процесс), не изолят V8;
-- сессионные методы требуют cookie или сервисного токена;
-- каталог статичный: новый эндпоинт добавляется в `catalog.json`.
+- a Python-level sandbox (AST + rlimits + a separate process), not a V8 isolate;
+- session-based methods need a cookie or a service token;
+- the catalog is static: a new endpoint is added to `catalog.json`.
 
-## Проверка качества
+## Quality check
 
-Склонируй репозиторий ViBo-SkillQA и прогони этот каталог через скрипт проверки из его корня:
+Clone the ViBo-SkillQA repository and run this skill directory through its checker:
 
 ```bash
 git clone https://github.com/vnbochkarev-netizen/ViBo-SkillQA.git
-cd ViBo-SkillQA && python3 <скрипт-проверки> test <путь-к-этому-каталогу> --lang ru
+cd ViBo-SkillQA && python3 <checker-script> test <path-to-this-directory> --lang en
 ```

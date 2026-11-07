@@ -1,0 +1,84 @@
+{
+  "_comment": "Optional query alias data: words a user may type -> catalog terms. Add a language here, or point VIBOCODE_ALIASES at a file outside the repo.",
+  "verbs": {
+    "create": "POST",
+    "add": "POST",
+    "new": "POST",
+    "make": "POST",
+    "send": "POST",
+    "post": "POST",
+    "get": "GET",
+    "list": "GET",
+    "show": "GET",
+    "read": "GET",
+    "fetch": "GET",
+    "retrieve": "GET",
+    "update": "PATCH",
+    "edit": "PATCH",
+    "change": "PATCH",
+    "modify": "PATCH",
+    "set": "PATCH",
+    "delete": "DELETE",
+    "remove": "DELETE",
+    "cancel": "DELETE",
+    "destroy": "DELETE"
+  },
+  "nouns": {
+    "customer": [
+      "customer"
+    ],
+    "payment": [
+      "payment"
+    ],
+    "refund": [
+      "refund"
+    ],
+    "subscription": [
+      "subscription"
+    ],
+    "invoice": [
+      "invoice"
+    ],
+    "product": [
+      "product"
+    ],
+    "order": [
+      "order"
+    ],
+    "balance": [
+      "balance"
+    ],
+    "repo": [
+      "repo",
+      "repository"
+    ],
+    "repository": [
+      "repo",
+      "repository"
+    ],
+    "star": [
+      "star",
+      "stargazer"
+    ],
+    "user": [
+      "user"
+    ],
+    "issue": [
+      "issue",
+      "issues"
+    ],
+    "commit": [
+      "commit"
+    ],
+    "pull request": [
+      "pull",
+      "pulls"
+    ],
+    "file": [
+      "file"
+    ],
+    "message": [
+      "message"
+    ]
+  }
+}

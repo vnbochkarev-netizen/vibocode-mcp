@@ -1,7 +1,7 @@
 {
   "name": "vibocode-mcp",
   "version": "0.1.1",
-  "description": "Two MCP tools instead of an API catalog: search finds endpoints, run executes model-written Python in a sandbox with memory and allowlisted HTTP. 247 tokens for the whole toolset; 1272 GitHub endpoints cost 79,525 tokens as plain tools.",
+  "description": "Two MCP tools instead of an API catalog: search finds endpoints, run executes model-written Python in a sandbox with memory and allowlisted HTTP. 217 tokens for the whole toolset; 1272 GitHub endpoints cost 79,525 tokens as plain tools.",
   "keywords": [
     "mcp",
     "mcp-server",

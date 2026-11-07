@@ -1,26 +1,26 @@
 # vibocode-mcp
 
-**Два инструмента вместо каталога API.** MCP-сервер, который держит контекст агента маленьким,
-а руки — длинными.
+**Two tools instead of an API catalog.** An MCP server that keeps the agent's context small
+and its reach long.
 
 ```
-search  — находит нужные эндпоинты и факты памяти, отдаёт компактные сигнатуры
-run     — исполняет Python-код модели в песочнице: api.get(path) + vi.add/find/stats
+search  — finds the right endpoints and memory facts, returns compact signatures
+run     — executes model-written Python in a sandbox: api.get(path) + vi.add/find/stats
 ```
 
-Вся палитра инструментов — **247 токенов** (токенайзер o200k_base). Полный каталог
-GitHub REST из 1 272 эндпоинтов в обычном виде — 79 525 токенов: выигрыш ×322.
-На 174 эндпоинтах Slack — ×37. Замеры и команды воспроизведения — в разделе «Замеры».
+The whole toolset is **217 tokens** (o200k_base tokenizer). The same GitHub REST catalog —
+1,272 endpoints — costs **79,525 tokens** as plain MCP tools: a 366x difference. Slack's
+174 endpoints: 42x. Measurements and reproduction commands are in [Benchmarks](#benchmarks).
 
-## Установка
+## Install
 
 ```bash
 npx vibocode-mcp
 ```
 
-Нужен **Node 18+** и **Python 3.10+** (сервер на Python).
+Requires **Node 18+** and **Python 3.10+** (the server is Python).
 
-Конфигурация MCP-клиента:
+MCP client configuration:
 
 ```json
 {
@@ -29,118 +29,124 @@ npx vibocode-mcp
       "command": "npx",
       "args": ["-y", "vibocode-mcp"],
       "env": {
-        "VIBOCODE_CATALOG": "/путь/к/catalog.json",
-        "VIBO_MEM_FILE": "/путь/к/memory.web"
+        "VIBOCODE_CATALOG": "/path/to/catalog.json",
+        "VIBO_MEM_FILE": "/path/to/memory.web"
       }
     }
   }
 }
 ```
 
-## Каталог действий
+## Action catalog
 
-`catalog.json` описывает сервис: базовый URL, разрешённые домены и список действий.
+`catalog.json` describes a service: base URL, allowed domains and the list of actions.
 
 ```json
 {
-  "service": "klasskopilka",
+  "service": "example",
   "base_url": "http://127.0.0.1:4174",
   "allow_domains": ["127.0.0.1"],
   "actions": [
     {"name": "health", "method": "GET", "path": "/api/health", "auth": false,
-     "desc": "Состояние сервиса"}
+     "desc": "Service health: storage, notification channels, server time"}
   ]
 }
 ```
 
-Каталог не пишется руками: для OpenAPI он собирается генератором.
+The catalog is not written by hand: for OpenAPI it is generated.
 
 ```bash
 python3 tools/openapi_to_catalog.py openapi.json -o catalog.json \
   --base-url https://api.example.com --allow api.example.com --service example
 ```
 
-## Как это выглядит в работе
+## What it looks like in use
 
 ```python
 h = api.get("/api/health")
 print(h["status"], h["data"]["storage"])
-vi.add("Состояние копилки", "health ok, хранилище local-json")
+vi.add("Service health", "health ok, storage local-json")
 print(vi.stats())
 ```
 
-Один `run` — запрос к API, запись в память, чтение статистики. Без памяти это просто песочница:
-ценность в том, что следующая сессия не выясняет заново то, что уже выяснено.
+One `run` call: an API request, a memory write and a stats read. Without memory it is just a
+sandbox; the value is that the next session does not rediscover what is already known.
 
-## Что внутри
+## What is inside
 
 ```
-bin/vibocode-mcp.js      — точка входа npm-пакета (запускает Python-сервер)
-vibocode/server.py       — MCP-сервер (JSON-RPC по stdio)
-vibocode/catalog.py      — поиск по каталогу, компактные сигнатуры
-vibocode/bridge.py       — мост: память ViBo + HTTP по allowlist
-vibocode/sandbox.py      — проверка AST + запуск в отдельном процессе с лимитами
-vibocode/runner.py       — исполнитель кода модели
-tools/openapi_to_catalog.py — генератор каталога из OpenAPI
-tests/test_mcp.py        — 19 проверок
-skill/                   — оформление как скилла (SKILL.md + CLI)
+bin/vibocode-mcp.js        — npm entry point (starts the Python server)
+vibocode/server.py         — MCP server (JSON-RPC over stdio)
+vibocode/catalog.py        — catalog search, compact signatures
+vibocode/aliases.json      — query alias data (natural language -> catalog terms)
+vibocode/bridge.py         — bridge: ViBo memory + allowlisted HTTP
+vibocode/sandbox.py        — AST validation + isolated process with limits
+vibocode/runner.py         — model code executor
+tools/openapi_to_catalog.py — catalog generator from OpenAPI
+tests/test_mcp.py          — 19 checks
+skill/                     — packaging as an agent skill (SKILL.md + CLI)
 ```
 
-## Безопасность
+## Security
 
-- импорты: `json, math, re, datetime, statistics, itertools`
-- запрещены `open, eval, exec, compile, __import__, getattr, setattr`, служебные атрибуты,
-  `global/nonlocal`, бесконечные циклы
-- сеть: только `api.get(path)` и только домены из `allow_domains`
-- лимиты: 40 с, 1,5 ГБ памяти, 20 с CPU, вывод до 4 000 символов
-- повторная запись того же факта в память пропускается
+- imports: `json, math, re, datetime, statistics, itertools`
+- forbidden: `open, eval, exec, compile, __import__, getattr, setattr`, dunder attributes,
+  `global/nonlocal`, infinite loops
+- network: only `api.get(path)`, only hosts from `allow_domains`
+- limits: 40 s wall clock, 1.5 GB memory, 20 s CPU, output capped at 4,000 characters
+- writing the same fact to memory twice is skipped
 
-Это песочница уровня Python (AST + rlimits + отдельный процесс), а не изолят V8: она защищает
-от случайного и небрежного кода, но не от целенаправленной атаки на уровне ОС.
+This is a Python-level sandbox (AST + rlimits + a separate process), not a V8 isolate: it
+protects against accidental and careless code, not against a deliberate OS-level attack.
 
-## Тесты
+## Tests
 
 ```bash
-python3 tests/test_mcp.py     # протокол, поиск, память, API, лимиты, блокировки
+python3 tests/test_mcp.py     # protocol, search, memory, API, limits, blocks
 ```
 
-## Замеры
+## Benchmarks
 
-Токенайзер `o200k_base` (tiktoken). Каталоги собраны генератором из официальных OpenAPI.
+Tokenizer: `o200k_base` (tiktoken). Catalogs are generated from official OpenAPI specs.
+"Full catalog" means one tool per endpoint, with name, description and an empty input
+schema — the lower bound, generous to the alternative.
 
-| Каталог | Действий | Полный каталог | vibocode | Выигрыш |
+| Catalog | Actions | Full catalog | vibocode | Ratio |
 |---|---|---|---|---|
-| GitHub REST | 1 272 | 79 525 токенов | 247 | ×322 |
-| Stripe | 612 | 38 020 токенов | 247 | ×154 |
-| Slack Web API | 174 | 9 129 токенов | 247 | ×37 |
+| GitHub REST | 1,272 | 79,525 tokens | 217 | 366x |
+| Stripe | 612 | 38,020 tokens | 217 | 175x |
+| Slack Web API | 174 | 9,129 tokens | 217 | 42x |
 
-«Полный каталог» — по инструменту на эндпоинт, с именем, описанием и пустой схемой входа:
-нижняя, самая щедрая к конкуренту оценка. Для GitHub это 40 % окна в 200 000 токенов
-до первого слова пользователя.
+For GitHub this is 40% of a 200,000-token window before the user says a word.
 
-Сквозной сценарий: один `run` с кодом в 196 токенов сделал три запроса к api.github.com,
-записал факт в память и прочитал статистику. Весь обмен из пяти шагов — 2 246 токенов.
+End-to-end: one `run` call with 196 tokens of code performed three requests to api.github.com,
+wrote a fact to memory and read the stats back. The whole five-step exchange: 2,202 tokens.
 
-## Качество поиска
+## Search quality
 
-Поиск лексический, двуязычный: русский запрос находит английский каталог
-(`платёж → payment`, `звёзды → star`, `отменить → DELETE`).
+Search is lexical and alias-aware. `aliases.json` maps the words a user types to catalog
+terms, so a query can be phrased naturally rather than in endpoint vocabulary.
 
-| Каталог | Запросов | Топ-1 | Топ-4 |
+Shipped configuration (English aliases):
+
+| Catalog | Queries | Top-1 | Top-4 |
 |---|---|---|---|
-| Stripe | 20 | 80 % | 95 % |
-| GitHub REST | 8 | 38 % | 75 % |
+| Stripe | 12 | 83% | 92% |
+| GitHub REST | 5 | 40% | 80% |
 
-GitHub — маленькая выборка, часть намерений неоднозначна (`list issues`). Слабое место:
-запросы, описывающие сценарий целиком, а не предмет. Следующий шаг — гибрид BM25 + эмбеддинги.
+With a language pack loaded through `VIBOCODE_ALIASES` (a mixed 28-query set, half of it
+non-English): Stripe 80% / 95%, GitHub 38% / 75%.
 
-## Ограничения
+Known weakness in both cases: queries that describe a whole scenario instead of an object.
+Next step: hybrid BM25 + embeddings.
 
-- транспорт — JSON-RPC построчно (не Content-Length), для stdio-клиентов достаточно
-- сессионные методы требуют cookie или сервисного токена
-- каталог статичный: новые эндпоинты добавляются в `catalog.json` (или генератором из OpenAPI)
-- поиск лексический, без векторного индекса
+## Limitations
 
-## Лицензия
+- transport is line-delimited JSON-RPC (not Content-Length); sufficient for stdio clients
+- session-based endpoints need a cookie or a service token
+- the catalog is static: new endpoints are added to `catalog.json` (or generated from OpenAPI)
+- search is lexical, without a vector index
 
-MIT. Память ViBo — отдельный продукт со своей лицензией.
+## License
+
+MIT. ViBo memory is a separate product with its own license.
