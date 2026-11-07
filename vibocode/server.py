@@ -18,7 +18,7 @@ from vibocode import catalog, sandbox  # noqa: E402
 from vibocode.bridge import Memory  # noqa: E402
 
 PROTOCOL = "2025-06-18"
-SERVER_INFO = {"name": "vibocode", "version": "0.1.1"}
+SERVER_INFO = {"name": "vibocode", "version": "0.1.3"}
 
 TOOLS = [
     {

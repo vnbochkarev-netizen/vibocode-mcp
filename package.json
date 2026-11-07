@@ -1,6 +1,6 @@
 {
   "name": "vibocode-mcp",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Two MCP tools instead of an API catalog: search finds endpoints, run executes model-written Python in a sandbox with memory and allowlisted HTTP. 217 tokens for the whole toolset; 1272 GitHub endpoints cost 79,525 tokens as plain tools.",
   "keywords": [
     "mcp",
@@ -40,5 +40,6 @@
     "darwin",
     "linux",
     "win32"
-  ]
+  ],
+  "mcpName": "io.github.vnbochkarev-netizen/vibocode-mcp"
 }
